@@ -1,125 +1,111 @@
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+import 'models/settings.dart';
+import 'screens/main_menu.dart';
+import 'models/player_data.dart';
+import 'models/spaceship_details.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a blue toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
+  // This opens the app in fullscreen mode.
+  await Flame.device.fullScreen();
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  // Initialize hive.
+  await initHive();
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+  runApp(
+    MultiProvider(
+      providers: [
+        FutureProvider<PlayerData>(
+          create: (BuildContext context) => getPlayerData(),
+          initialData: PlayerData.fromMap(PlayerData.defaultData),
+        ),
+        FutureProvider<Settings>(
+          create: (BuildContext context) => getSettings(),
+          initialData: Settings(soundEffects: false, backgroundMusic: false),
+        ),
+      ],
+      builder: (context, child) {
+        // We use .value constructor here because the required objects
+        // are already created by upstream FutureProviders.
+        return MultiProvider(
+          providers: [
+            ChangeNotifierProvider<PlayerData>.value(
+              value: Provider.of<PlayerData>(context),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            ChangeNotifierProvider<Settings>.value(
+              value: Provider.of<Settings>(context),
             ),
           ],
+          child: child,
+        );
+      },
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        // Dark more because we are too cool for white theme.
+        themeMode: ThemeMode.dark,
+        // Use custom theme with 'BungeeInline' font.
+        darkTheme: ThemeData(
+          brightness: Brightness.dark,
+          fontFamily: 'BungeeInline',
+          scaffoldBackgroundColor: Colors.black,
         ),
+        // MainMenu will be the first screen for now.
+        // But this might change in future if we decide
+        // to add a splash screen.
+        home: const MainMenu(),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    ),
+  );
+}
+
+// This function initializes hive with app's
+// documents directory and also registers
+// all the hive adapters.
+Future<void> initHive() async {
+  await Hive.initFlutter();
+
+  Hive.registerAdapter(PlayerDataAdapter());
+  Hive.registerAdapter(SpaceshipTypeAdapter());
+  Hive.registerAdapter(SettingsAdapter());
+}
+
+/// This function reads the stored [PlayerData] from disk.
+Future<PlayerData> getPlayerData() async {
+  // Open the player data box and read player data from it.
+  final box = await Hive.openBox<PlayerData>(PlayerData.playerDataBox);
+  final playerData = box.get(PlayerData.playerDataKey);
+
+  // If player data is null, it means this is a fresh launch
+  // of the game. In such case, we first store the default
+  // player data in the player data box and then return the same.
+  if (playerData == null) {
+    box.put(
+      PlayerData.playerDataKey,
+      PlayerData.fromMap(PlayerData.defaultData),
     );
   }
+
+  return box.get(PlayerData.playerDataKey)!;
+}
+
+/// This function reads the stored [Settings] from disk.
+Future<Settings> getSettings() async {
+  // Open the settings box and read settings from it.
+  final box = await Hive.openBox<Settings>(Settings.settingsBox);
+  final settings = box.get(Settings.settingsKey);
+
+  // If settings is null, it means this is a fresh launch
+  // of the game. In such case, we first store the default
+  // settings in the settings box and then return the same.
+  if (settings == null) {
+    box.put(Settings.settingsKey,
+        Settings(soundEffects: true, backgroundMusic: true));
+  }
+
+  return box.get(Settings.settingsKey)!;
 }

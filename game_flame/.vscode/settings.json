@@ -1,0 +1,7 @@
+{
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "cmake.sourceDirectory": "${workspaceFolder}/linux",
+    "editor.codeActionsOnSave": {
+     "source.fixAll": true
+    }
+}
